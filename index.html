@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#2e7d32" />
+  <meta name="description" content="Find gluten-free restaurants near you, anywhere you travel." />
+  <title>Gluten Free Nearby</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Gluten Free Nearby</h1>
+    <button id="refresh-btn" type="button" aria-label="Refresh location">
+      <span aria-hidden="true">&#x21bb;</span> Refresh
+    </button>
+  </header>
+
+  <section class="controls">
+    <label for="radius">Search radius:</label>
+    <select id="radius">
+      <option value="2000">2 km</option>
+      <option value="5000" selected>5 km</option>
+      <option value="10000">10 km</option>
+      <option value="25000">25 km</option>
+    </select>
+    <span id="status" class="status" role="status" aria-live="polite"></span>
+  </section>
+
+  <main>
+    <div id="map" aria-label="Map of nearby gluten-free restaurants"></div>
+    <section id="results" aria-label="List of nearby gluten-free restaurants">
+      <ul id="results-list"></ul>
+      <p id="empty-state" class="empty-state" hidden>
+        No gluten-free spots found in this radius. Try expanding the search.
+      </p>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    Data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors
+  </footer>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

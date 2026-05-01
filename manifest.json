@@ -1,0 +1,19 @@
+{
+  "name": "Gluten Free Nearby",
+  "short_name": "GF Nearby",
+  "description": "Find gluten-free restaurants near your current location, anywhere in the world.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f9f7",
+  "theme_color": "#2e7d32",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

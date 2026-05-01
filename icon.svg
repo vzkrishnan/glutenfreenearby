@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#2e7d32"/>
+  <g transform="translate(256 256)">
+    <circle r="170" fill="#c8e6c9"/>
+    <path d="M0 -130 C 60 -130 110 -80 110 -20 C 110 60 50 130 0 130 C -50 130 -110 60 -110 -20 C -110 -80 -60 -130 0 -130 Z"
+          fill="#2e7d32"/>
+    <path d="M0 -110 L 0 110 M -70 -70 L 70 50 M 70 -70 L -70 50"
+          stroke="#c8e6c9" stroke-width="14" stroke-linecap="round" fill="none"/>
+    <text x="0" y="180" text-anchor="middle" font-family="-apple-system, Helvetica, sans-serif"
+          font-size="56" font-weight="700" fill="#fff">GF</text>
+  </g>
+</svg>
