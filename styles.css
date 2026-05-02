@@ -79,9 +79,15 @@ body {
   padding: 10px 16px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .controls label {
@@ -95,6 +101,22 @@ body {
   border: 1px solid var(--border);
   background: #fff;
   font-size: 0.95rem;
+  max-width: 220px;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle input[type="checkbox"] {
+  accent-color: var(--primary);
+  margin: 0;
 }
 
 .status {
@@ -194,6 +216,26 @@ main {
 .tag-yes {
   background: var(--primary-light);
   color: var(--primary-dark);
+}
+
+.tag-maybe {
+  background: #fff3cd;
+  color: #8a6d00;
+}
+
+.group-header {
+  list-style: none;
+  background: #f0f4f0;
+  color: var(--primary-dark);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .empty-state {

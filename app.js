@@ -7,9 +7,72 @@
     'https://overpass.openstreetmap.ru/api/interpreter'
   ];
 
+  // Cuisines that commonly include naturally gluten-free dishes.
+  // Used to expand the search beyond places explicitly tagged diet:gluten_free.
+  const GF_FRIENDLY_CUISINES = [
+    'indian',
+    'thai',
+    'vietnamese',
+    'mexican',
+    'japanese',
+    'sushi',
+    'korean',
+    'chinese',
+    'ethiopian',
+    'lebanese',
+    'mediterranean',
+    'middle_eastern',
+    'turkish',
+    'greek',
+    'persian',
+    'african',
+    'brazilian',
+    'peruvian',
+    'caribbean'
+  ];
+
+  const CUISINE_LABELS = {
+    indian: 'Indian',
+    thai: 'Thai',
+    vietnamese: 'Vietnamese',
+    mexican: 'Mexican',
+    japanese: 'Japanese',
+    sushi: 'Sushi / Japanese',
+    korean: 'Korean',
+    chinese: 'Chinese',
+    ethiopian: 'Ethiopian',
+    lebanese: 'Lebanese',
+    mediterranean: 'Mediterranean',
+    middle_eastern: 'Middle Eastern',
+    turkish: 'Turkish',
+    greek: 'Greek',
+    persian: 'Persian',
+    african: 'African',
+    brazilian: 'Brazilian',
+    peruvian: 'Peruvian',
+    caribbean: 'Caribbean',
+    italian: 'Italian',
+    american: 'American',
+    pizza: 'Pizza',
+    burger: 'Burger',
+    cafe: 'Café',
+    coffee_shop: 'Coffee shop',
+    bakery: 'Bakery',
+    dessert: 'Dessert',
+    breakfast: 'Breakfast',
+    asian: 'Asian',
+    fusion: 'Fusion',
+    international: 'International',
+    regional: 'Regional',
+    vegetarian: 'Vegetarian',
+    vegan: 'Vegan'
+  };
+
   const statusEl = document.getElementById('status');
   const refreshBtn = document.getElementById('refresh-btn');
   const radiusEl = document.getElementById('radius');
+  const cuisineEl = document.getElementById('cuisine');
+  const includeFriendlyEl = document.getElementById('include-friendly');
   const resultsList = document.getElementById('results-list');
   const emptyState = document.getElementById('empty-state');
 
@@ -17,6 +80,7 @@
   let userMarker;
   let resultMarkersLayer;
   let lastCoords = null;
+  let lastPlaces = [];
 
   function setStatus(message, isError) {
     statusEl.textContent = message || '';
@@ -59,16 +123,22 @@
     });
   }
 
-  function buildOverpassQuery(lat, lon, radius) {
-    return (
-      '[out:json][timeout:25];' +
-      '(' +
-        'node["diet:gluten_free"~"yes|only"](around:' + radius + ',' + lat + ',' + lon + ');' +
-        'way["diet:gluten_free"~"yes|only"](around:' + radius + ',' + lat + ',' + lon + ');' +
-        'node["cuisine"~"gluten_free",i](around:' + radius + ',' + lat + ',' + lon + ');' +
-      ');' +
-      'out center tags;'
-    );
+  function buildOverpassQuery(lat, lon, radius, includeFriendly) {
+    const around = 'around:' + radius + ',' + lat + ',' + lon;
+    const parts = [
+      'node["diet:gluten_free"~"yes|only"](' + around + ');',
+      'way["diet:gluten_free"~"yes|only"](' + around + ');',
+      'node["cuisine"~"gluten_free",i](' + around + ');',
+      'way["cuisine"~"gluten_free",i](' + around + ');'
+    ];
+
+    if (includeFriendly) {
+      const cuisineRegex = GF_FRIENDLY_CUISINES.join('|');
+      parts.push('node["amenity"~"restaurant|cafe|fast_food"]["cuisine"~"' + cuisineRegex + '",i](' + around + ');');
+      parts.push('way["amenity"~"restaurant|cafe|fast_food"]["cuisine"~"' + cuisineRegex + '",i](' + around + ');');
+    }
+
+    return '[out:json][timeout:25];(' + parts.join('') + ');out center tags;';
   }
 
   async function queryOverpass(query) {
@@ -123,24 +193,161 @@
     return parts.join(', ');
   }
 
+  // OSM cuisine tags can be semicolon-separated lists. Pick the first known
+  // friendly cuisine, otherwise fall back to the first value.
+  function pickPrimaryCuisine(rawCuisine) {
+    if (!rawCuisine) return '';
+    const values = rawCuisine.split(';').map(function (v) { return v.trim().toLowerCase(); }).filter(Boolean);
+    if (!values.length) return '';
+    for (const v of values) {
+      if (GF_FRIENDLY_CUISINES.indexOf(v) !== -1) return v;
+    }
+    return values[0];
+  }
+
+  function cuisineLabel(key) {
+    if (!key) return 'Other';
+    if (CUISINE_LABELS[key]) return CUISINE_LABELS[key];
+    return key.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+  }
+
   function normalizeElement(el, userLat, userLon) {
     const lat = el.lat != null ? el.lat : (el.center && el.center.lat);
     const lon = el.lon != null ? el.lon : (el.center && el.center.lon);
     if (lat == null || lon == null) return null;
     const tags = el.tags || {};
+    const rawCuisine = tags.cuisine || '';
+    const cuisineKey = pickPrimaryCuisine(rawCuisine);
+    const dietTag = tags['diet:gluten_free'] || '';
+    const cuisineMentionsGf = rawCuisine && /gluten_free/i.test(rawCuisine);
+    let glutenFree = '';
+    if (dietTag === 'only') glutenFree = 'only';
+    else if (dietTag === 'yes' || cuisineMentionsGf) glutenFree = 'yes';
+    else glutenFree = 'maybe';
+
     return {
       id: el.type + '/' + el.id,
       lat: lat,
       lon: lon,
       name: tags.name || 'Unnamed place',
-      cuisine: tags.cuisine || '',
+      cuisineKey: cuisineKey,
+      cuisineLabel: cuisineLabel(cuisineKey),
       amenity: tags.amenity || '',
       address: buildAddress(tags),
-      glutenFree: tags['diet:gluten_free'] || (tags.cuisine && /gluten_free/i.test(tags.cuisine) ? 'yes' : ''),
+      glutenFree: glutenFree,
       distanceKm: haversineKm(userLat, userLon, lat, lon),
       website: tags.website || tags['contact:website'] || '',
       phone: tags.phone || tags['contact:phone'] || ''
     };
+  }
+
+  function updateCuisineDropdown(places) {
+    const previous = cuisineEl.value;
+    const counts = {};
+    places.forEach(function (p) {
+      const key = p.cuisineKey || '__other__';
+      counts[key] = (counts[key] || 0) + 1;
+    });
+
+    const keys = Object.keys(counts).sort(function (a, b) {
+      if (a === '__other__') return 1;
+      if (b === '__other__') return -1;
+      return cuisineLabel(a).localeCompare(cuisineLabel(b));
+    });
+
+    cuisineEl.innerHTML = '';
+    const allOpt = document.createElement('option');
+    allOpt.value = 'all';
+    allOpt.textContent = 'All cuisines (' + places.length + ')';
+    cuisineEl.appendChild(allOpt);
+
+    keys.forEach(function (key) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      const label = key === '__other__' ? 'Other / unspecified' : cuisineLabel(key);
+      opt.textContent = label + ' (' + counts[key] + ')';
+      cuisineEl.appendChild(opt);
+    });
+
+    cuisineEl.value = Array.from(cuisineEl.options).some(function (o) { return o.value === previous; })
+      ? previous
+      : 'all';
+  }
+
+  function filterByCuisine(places) {
+    const selected = cuisineEl.value;
+    if (!selected || selected === 'all') return places.slice();
+    if (selected === '__other__') {
+      return places.filter(function (p) { return !p.cuisineKey; });
+    }
+    return places.filter(function (p) { return p.cuisineKey === selected; });
+  }
+
+  function groupByCuisine(places) {
+    const groups = {};
+    places.forEach(function (p) {
+      const key = p.cuisineKey || '__other__';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(p);
+    });
+    return Object.keys(groups)
+      .map(function (key) {
+        return {
+          key: key,
+          label: key === '__other__' ? 'Other / unspecified' : cuisineLabel(key),
+          places: groups[key]
+        };
+      })
+      .sort(function (a, b) {
+        // Groups with closer minimum distance come first.
+        const aMin = a.places[0] ? a.places[0].distanceKm : Infinity;
+        const bMin = b.places[0] ? b.places[0].distanceKm : Infinity;
+        return aMin - bMin;
+      });
+  }
+
+  function tagInfo(glutenFree) {
+    if (glutenFree === 'only') return { cls: 'tag-only', text: 'Gluten free only' };
+    if (glutenFree === 'yes') return { cls: 'tag-yes', text: 'Gluten free options' };
+    return { cls: 'tag-maybe', text: 'May have GF options' };
+  }
+
+  function renderResultItem(place) {
+    const li = document.createElement('li');
+    li.className = 'result-item';
+    li.tabIndex = 0;
+    li.setAttribute('role', 'button');
+
+    const tag = tagInfo(place.glutenFree);
+
+    li.innerHTML =
+      '<div class="name"></div>' +
+      '<div class="meta">' +
+        '<span class="type"></span>' +
+        '<span class="distance"></span>' +
+      '</div>' +
+      '<div class="address"></div>' +
+      '<span class="tag"></span>';
+
+    li.querySelector('.name').textContent = place.name;
+    const typeText = place.cuisineLabel && place.cuisineLabel !== 'Other'
+      ? place.cuisineLabel
+      : (place.amenity || 'place').replace(/_/g, ' ');
+    li.querySelector('.type').textContent = typeText;
+    li.querySelector('.distance').textContent = formatDistance(place.distanceKm);
+    li.querySelector('.address').textContent = place.address || 'Address not listed';
+    const tagEl = li.querySelector('.tag');
+    tagEl.classList.add(tag.cls);
+    tagEl.textContent = tag.text;
+
+    li.addEventListener('click', function () { focusPlace(place); });
+    li.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        focusPlace(place);
+      }
+    });
+    return li;
   }
 
   function renderResults(places, userCoords) {
@@ -154,48 +361,26 @@
     emptyState.hidden = true;
 
     const bounds = L.latLngBounds([userCoords.lat, userCoords.lon], [userCoords.lat, userCoords.lon]);
+    const groups = groupByCuisine(places);
+    const showGroupHeaders = groups.length > 1;
 
-    places.forEach(function (place) {
-      const li = document.createElement('li');
-      li.className = 'result-item';
-      li.tabIndex = 0;
-      li.setAttribute('role', 'button');
-
-      const tagClass = place.glutenFree === 'only' ? 'tag-only' : 'tag-yes';
-      const tagText = place.glutenFree === 'only' ? 'Gluten free only' : 'Gluten free options';
-
-      li.innerHTML =
-        '<div class="name"></div>' +
-        '<div class="meta">' +
-          '<span class="type"></span>' +
-          '<span class="distance"></span>' +
-        '</div>' +
-        '<div class="address"></div>' +
-        '<span class="tag ' + tagClass + '"></span>';
-
-      li.querySelector('.name').textContent = place.name;
-      li.querySelector('.type').textContent = (place.amenity || 'place').replace(/_/g, ' ');
-      li.querySelector('.distance').textContent = formatDistance(place.distanceKm);
-      li.querySelector('.address').textContent = place.address || 'Address not listed';
-      li.querySelector('.tag').textContent = tagText;
-
-      li.addEventListener('click', function () { focusPlace(place); });
-      li.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          focusPlace(place);
-        }
+    groups.forEach(function (group) {
+      if (showGroupHeaders) {
+        const header = document.createElement('li');
+        header.className = 'group-header';
+        header.setAttribute('role', 'separator');
+        header.textContent = group.label + ' (' + group.places.length + ')';
+        resultsList.appendChild(header);
+      }
+      group.places.forEach(function (place) {
+        resultsList.appendChild(renderResultItem(place));
+        const marker = L.marker([place.lat, place.lon]).bindPopup(buildPopupHtml(place));
+        resultMarkersLayer.addLayer(marker);
+        bounds.extend([place.lat, place.lon]);
       });
-      resultsList.appendChild(li);
-
-      const marker = L.marker([place.lat, place.lon]).bindPopup(buildPopupHtml(place));
-      resultMarkersLayer.addLayer(marker);
-      bounds.extend([place.lat, place.lon]);
     });
 
-    if (places.length > 0) {
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
-    }
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
   }
 
   function buildPopupHtml(place) {
@@ -203,6 +388,15 @@
     const name = document.createElement('strong');
     name.textContent = place.name;
     wrapper.appendChild(name);
+
+    if (place.cuisineLabel && place.cuisineLabel !== 'Other') {
+      const cuisine = document.createElement('div');
+      cuisine.textContent = place.cuisineLabel;
+      cuisine.style.fontSize = '0.8rem';
+      cuisine.style.marginTop = '2px';
+      cuisine.style.color = '#5b6b5b';
+      wrapper.appendChild(cuisine);
+    }
 
     if (place.address) {
       const addr = document.createElement('div');
@@ -218,6 +412,15 @@
     dist.style.marginTop = '4px';
     dist.style.color = '#1b5e20';
     wrapper.appendChild(dist);
+
+    const tag = tagInfo(place.glutenFree);
+    const tagEl = document.createElement('div');
+    tagEl.textContent = tag.text;
+    tagEl.style.fontSize = '0.75rem';
+    tagEl.style.marginTop = '4px';
+    tagEl.style.fontWeight = '600';
+    tagEl.style.color = place.glutenFree === 'maybe' ? '#8a6d00' : '#1b5e20';
+    wrapper.appendChild(tagEl);
 
     const directions = document.createElement('a');
     directions.href = 'https://www.openstreetmap.org/?mlat=' + place.lat + '&mlon=' + place.lon + '#map=18/' + place.lat + '/' + place.lon;
@@ -259,6 +462,19 @@
     map.setView(latlng, 14);
   }
 
+  function applyFilterAndRender() {
+    if (!lastCoords) return;
+    const filtered = filterByCuisine(lastPlaces);
+    renderResults(filtered, lastCoords);
+    const total = lastPlaces.length;
+    const shown = filtered.length;
+    if (total === shown) {
+      setStatus('Found ' + total + ' place' + (total === 1 ? '' : 's') + '.');
+    } else {
+      setStatus('Showing ' + shown + ' of ' + total + ' place' + (total === 1 ? '' : 's') + '.');
+    }
+  }
+
   async function refresh() {
     refreshBtn.disabled = true;
     setStatus('Getting your location...');
@@ -268,21 +484,32 @@
       placeUserMarker(coords);
 
       const radius = parseInt(radiusEl.value, 10) || 5000;
-      setStatus('Searching gluten-free places within ' + (radius / 1000) + ' km...');
+      const includeFriendly = !!includeFriendlyEl.checked;
+      setStatus('Searching within ' + (radius / 1000) + ' km...');
 
-      const data = await queryOverpass(buildOverpassQuery(coords.lat, coords.lon, radius));
+      const data = await queryOverpass(buildOverpassQuery(coords.lat, coords.lon, radius, includeFriendly));
       const elements = (data && data.elements) || [];
 
+      const seen = new Set();
       const places = elements
         .map(function (el) { return normalizeElement(el, coords.lat, coords.lon); })
-        .filter(function (p) { return p && p.distanceKm * 1000 <= radius; })
+        .filter(function (p) {
+          if (!p) return false;
+          if (p.distanceKm * 1000 > radius) return false;
+          if (seen.has(p.id)) return false;
+          seen.add(p.id);
+          return true;
+        })
         .sort(function (a, b) { return a.distanceKm - b.distanceKm; });
 
-      renderResults(places, coords);
-      setStatus('Found ' + places.length + ' place' + (places.length === 1 ? '' : 's') + '.');
+      lastPlaces = places;
+      updateCuisineDropdown(places);
+      applyFilterAndRender();
     } catch (err) {
       console.error(err);
       setStatus(err.message || 'Something went wrong.', true);
+      lastPlaces = [];
+      updateCuisineDropdown([]);
       renderResults([], lastCoords || { lat: 0, lon: 0 });
     } finally {
       refreshBtn.disabled = false;
@@ -295,6 +522,10 @@
     radiusEl.addEventListener('change', function () {
       if (lastCoords) refresh();
     });
+    includeFriendlyEl.addEventListener('change', function () {
+      if (lastCoords) refresh();
+    });
+    cuisineEl.addEventListener('change', applyFilterAndRender);
     refresh();
   });
 })();

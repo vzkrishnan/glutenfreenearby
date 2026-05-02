@@ -28,13 +28,28 @@
   </header>
 
   <section class="controls">
-    <label for="radius">Search radius:</label>
-    <select id="radius">
-      <option value="2000">2 km</option>
-      <option value="5000" selected>5 km</option>
-      <option value="10000">10 km</option>
-      <option value="25000">25 km</option>
-    </select>
+    <div class="control-group">
+      <label for="radius">Radius</label>
+      <select id="radius">
+        <option value="2000">2 km</option>
+        <option value="5000" selected>5 km</option>
+        <option value="10000">10 km</option>
+        <option value="25000">25 km</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="cuisine">Cuisine</label>
+      <select id="cuisine">
+        <option value="all" selected>All cuisines</option>
+      </select>
+    </div>
+
+    <label class="toggle" title="Many Indian, Thai, Vietnamese, Mexican and similar restaurants serve naturally gluten-free dishes even when not explicitly tagged.">
+      <input type="checkbox" id="include-friendly" checked />
+      <span>Include cuisines that often have gluten-free options</span>
+    </label>
+
     <span id="status" class="status" role="status" aria-live="polite"></span>
   </section>
 
