@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gf-nearby-v2';
+const CACHE_NAME = 'gf-nearby-v3';
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -48,13 +48,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Network-first for the app shell so new deploys take effect on next reload.
+  // Falls back to cache only when offline.
   event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req).then((res) => {
+    fetch(req).then((res) => {
       if (res && res.status === 200 && req.url.startsWith(self.location.origin)) {
         const copy = res.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
       }
       return res;
-    }).catch(() => cached))
+    }).catch(() => caches.match(req))
   );
 });
