@@ -6,6 +6,8 @@ A Progressive Web App that finds gluten-free restaurants and cafés near your cu
 
 - Uses your device location (Geolocation API)
 - Queries the free [Overpass API](https://overpass-api.de/) for places tagged `diet:gluten_free=yes` or `only`
+- Optionally also includes cuisines that frequently offer naturally gluten-free dishes (Indian, Thai, Vietnamese, Mexican, Japanese/sushi, Korean, Ethiopian, Mediterranean, Middle Eastern, etc.) — these are flagged "May have GF options"
+- Filter results by cuisine, with results grouped by cuisine in the list
 - Shows results on a Leaflet map and as a sortable list (closest first)
 - Distance and address for each result
 - Adjustable search radius (2 / 5 / 10 / 25 km)
@@ -52,7 +54,9 @@ npx cap open ios       # or android
 
 ## Data source
 
-All restaurant data comes from [OpenStreetMap](https://www.openstreetmap.org/). The app reads the `diet:gluten_free` tag and `cuisine=gluten_free` from public OSM nodes/ways. Coverage depends on what local mappers have contributed — if a place is missing, anyone can add it.
+All restaurant data comes from [OpenStreetMap](https://www.openstreetmap.org/). The app reads the `diet:gluten_free` tag and `cuisine=gluten_free` from public OSM nodes/ways. Coverage of the explicit gluten-free tag depends on what local mappers have contributed — if a place is missing, anyone can add it.
+
+When the "Include cuisines that often have gluten-free options" toggle is on, the app also queries restaurants/cafés tagged with cuisines that commonly include naturally gluten-free dishes. These appear with a "May have GF options" badge — always confirm with the venue before ordering, especially for cross-contamination concerns.
 
 ## License
 
