@@ -197,6 +197,55 @@ main {
   line-height: 1.35;
 }
 
+.result-item .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.action-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 999px;
+  text-decoration: none;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--primary-dark);
+}
+
+.action-link:hover,
+.action-link:focus {
+  background: var(--primary-light);
+  outline: none;
+}
+
+.action-call::before {
+  content: "\260E";
+  font-size: 0.95rem;
+}
+
+.action-book {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.action-book::before {
+  content: "\1F517";
+  font-size: 0.85rem;
+}
+
+.action-book:hover,
+.action-book:focus {
+  background: var(--primary-dark);
+  color: #fff;
+}
+
 .result-item .tag {
   display: inline-block;
   font-size: 0.7rem;

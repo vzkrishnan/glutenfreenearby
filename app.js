@@ -312,6 +312,19 @@
     return { cls: 'tag-maybe', text: 'May have GF options' };
   }
 
+  // OSM stores phone numbers in various forms. Normalize to a tel: href by
+  // stripping spaces, dashes, parens, and trailing extensions.
+  function telHref(phone) {
+    if (!phone) return '';
+    const cleaned = String(phone).split(/[;,]/)[0].trim().replace(/[\s().-]/g, '');
+    return cleaned ? 'tel:' + cleaned : '';
+  }
+
+  function displayPhone(phone) {
+    if (!phone) return '';
+    return String(phone).split(/[;,]/)[0].trim();
+  }
+
   function renderResultItem(place) {
     const li = document.createElement('li');
     li.className = 'result-item';
@@ -327,6 +340,7 @@
         '<span class="distance"></span>' +
       '</div>' +
       '<div class="address"></div>' +
+      '<div class="actions"></div>' +
       '<span class="tag"></span>';
 
     li.querySelector('.name').textContent = place.name;
@@ -339,6 +353,32 @@
     const tagEl = li.querySelector('.tag');
     tagEl.classList.add(tag.cls);
     tagEl.textContent = tag.text;
+
+    const actions = li.querySelector('.actions');
+    const tel = telHref(place.phone);
+    if (tel) {
+      const a = document.createElement('a');
+      a.className = 'action-link action-call';
+      a.href = tel;
+      a.textContent = displayPhone(place.phone);
+      a.setAttribute('aria-label', 'Call ' + place.name);
+      a.addEventListener('click', function (e) { e.stopPropagation(); });
+      actions.appendChild(a);
+    }
+    if (place.website) {
+      const w = document.createElement('a');
+      w.className = 'action-link action-book';
+      w.href = place.website;
+      w.target = '_blank';
+      w.rel = 'noopener';
+      w.textContent = 'Book / Visit website';
+      w.setAttribute('aria-label', 'Open website for ' + place.name);
+      w.addEventListener('click', function (e) { e.stopPropagation(); });
+      actions.appendChild(w);
+    }
+    if (!tel && !place.website) {
+      actions.remove();
+    }
 
     li.addEventListener('click', function () { focusPlace(place); });
     li.addEventListener('keydown', function (e) {
@@ -421,6 +461,29 @@
     tagEl.style.fontWeight = '600';
     tagEl.style.color = place.glutenFree === 'maybe' ? '#8a6d00' : '#1b5e20';
     wrapper.appendChild(tagEl);
+
+    const tel = telHref(place.phone);
+    if (tel) {
+      const phoneLink = document.createElement('a');
+      phoneLink.href = tel;
+      phoneLink.textContent = 'Call ' + displayPhone(place.phone);
+      phoneLink.style.display = 'block';
+      phoneLink.style.marginTop = '6px';
+      phoneLink.style.fontSize = '0.85rem';
+      wrapper.appendChild(phoneLink);
+    }
+
+    if (place.website) {
+      const bookLink = document.createElement('a');
+      bookLink.href = place.website;
+      bookLink.target = '_blank';
+      bookLink.rel = 'noopener';
+      bookLink.textContent = 'Book / Visit website';
+      bookLink.style.display = 'block';
+      bookLink.style.marginTop = '4px';
+      bookLink.style.fontSize = '0.85rem';
+      wrapper.appendChild(bookLink);
+    }
 
     const directions = document.createElement('a');
     directions.href = 'https://www.openstreetmap.org/?mlat=' + place.lat + '&mlon=' + place.lon + '#map=18/' + place.lat + '/' + place.lon;
