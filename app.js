@@ -193,16 +193,13 @@
     return parts.join(', ');
   }
 
-  // OSM cuisine tags can be semicolon-separated lists. Pick the first known
-  // friendly cuisine, otherwise fall back to the first value.
+  // OSM cuisine tags can be semicolon-separated; the first value is the primary
+  // cuisine per OSM convention. Don't reorder — that would mis-bucket fusion
+  // places like "italian;indian" under whichever value happened to be friendly.
   function pickPrimaryCuisine(rawCuisine) {
     if (!rawCuisine) return '';
     const values = rawCuisine.split(';').map(function (v) { return v.trim().toLowerCase(); }).filter(Boolean);
-    if (!values.length) return '';
-    for (const v of values) {
-      if (GF_FRIENDLY_CUISINES.indexOf(v) !== -1) return v;
-    }
-    return values[0];
+    return values[0] || '';
   }
 
   function cuisineLabel(key) {
@@ -300,8 +297,8 @@
       })
       .sort(function (a, b) {
         // Groups with closer minimum distance come first.
-        const aMin = a.places[0] ? a.places[0].distanceKm : Infinity;
-        const bMin = b.places[0] ? b.places[0].distanceKm : Infinity;
+        const aMin = a.places.reduce(function (m, p) { return Math.min(m, p.distanceKm); }, Infinity);
+        const bMin = b.places.reduce(function (m, p) { return Math.min(m, p.distanceKm); }, Infinity);
         return aMin - bMin;
       });
   }
@@ -344,7 +341,7 @@
       '<span class="tag"></span>';
 
     li.querySelector('.name').textContent = place.name;
-    const typeText = place.cuisineLabel && place.cuisineLabel !== 'Other'
+    const typeText = place.cuisineKey
       ? place.cuisineLabel
       : (place.amenity || 'place').replace(/_/g, ' ');
     li.querySelector('.type').textContent = typeText;
@@ -429,7 +426,7 @@
     name.textContent = place.name;
     wrapper.appendChild(name);
 
-    if (place.cuisineLabel && place.cuisineLabel !== 'Other') {
+    if (place.cuisineKey) {
       const cuisine = document.createElement('div');
       cuisine.textContent = place.cuisineLabel;
       cuisine.style.fontSize = '0.8rem';
