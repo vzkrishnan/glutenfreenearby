@@ -90,6 +90,87 @@ body {
   gap: 6px;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.place-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 280px;
+  min-width: 220px;
+}
+
+.place-search input[type="search"] {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-size: 0.95rem;
+}
+
+.place-search input[type="search"]:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.place-search button {
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.place-search button#use-my-location-btn {
+  background: #fff;
+  color: var(--primary-dark);
+}
+
+.place-search button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.location-help {
+  flex-basis: 100%;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  color: #5d4200;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.location-help strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.location-help em {
+  font-style: normal;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
 .controls label {
   font-size: 0.9rem;
   color: var(--muted);

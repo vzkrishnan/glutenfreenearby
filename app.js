@@ -75,16 +75,27 @@
   const includeFriendlyEl = document.getElementById('include-friendly');
   const resultsList = document.getElementById('results-list');
   const emptyState = document.getElementById('empty-state');
+  const placeSearchForm = document.getElementById('place-search');
+  const placeInputEl = document.getElementById('place-input');
+  const placeSearchBtn = document.getElementById('place-search-btn');
+  const useMyLocationBtn = document.getElementById('use-my-location-btn');
+  const locationHelpEl = document.getElementById('location-help');
 
   let map;
   let userMarker;
   let resultMarkersLayer;
   let lastCoords = null;
   let lastPlaces = [];
+  let lastCenterLabel = '';
+  let lastCenterIsManual = false;
 
   function setStatus(message, isError) {
     statusEl.textContent = message || '';
     statusEl.classList.toggle('error', !!isError);
+  }
+
+  function showLocationHelp(visible) {
+    if (locationHelpEl) locationHelpEl.hidden = !visible;
   }
 
   function initMap() {
@@ -504,22 +515,44 @@
     });
   }
 
-  function placeUserMarker(coords) {
+  function placeUserMarker(coords, isManual, label) {
     const latlng = [coords.lat, coords.lon];
+    const color = isManual ? '#ef6c00' : '#1976d2';
+    const popupText = isManual ? ('Search center' + (label ? ': ' + label : '')) : 'You are here';
     if (userMarker) {
-      userMarker.setLatLng(latlng);
-    } else {
-      const userIcon = L.divIcon({
-        className: 'user-location-marker',
-        html: '<div style="background:#1976d2;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px #1976d2;"></div>',
-        iconSize: [22, 22],
-        iconAnchor: [11, 11]
-      });
-      userMarker = L.marker(latlng, { icon: userIcon, zIndexOffset: 1000 })
-        .bindPopup('You are here')
-        .addTo(map);
+      map.removeLayer(userMarker);
+      userMarker = null;
     }
+    const icon = L.divIcon({
+      className: 'user-location-marker',
+      html: '<div style="background:' + color + ';width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px ' + color + ';"></div>',
+      iconSize: [22, 22],
+      iconAnchor: [11, 11]
+    });
+    userMarker = L.marker(latlng, { icon: icon, zIndexOffset: 1000 })
+      .bindPopup(popupText)
+      .addTo(map);
     map.setView(latlng, 14);
+  }
+
+  async function geocodePlace(query) {
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query);
+    const response = await fetch(url, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!response.ok) {
+      throw new Error('Place lookup failed (' + response.status + ').');
+    }
+    const results = await response.json();
+    if (!Array.isArray(results) || !results.length) {
+      throw new Error('No place matched "' + query + '". Try a more specific name.');
+    }
+    const top = results[0];
+    return {
+      lat: parseFloat(top.lat),
+      lon: parseFloat(top.lon),
+      label: top.display_name || query
+    };
   }
 
   function applyFilterAndRender() {
@@ -535,57 +568,99 @@
     }
   }
 
+  async function runSearchAtCenter(coords, label, isManual) {
+    lastCoords = coords;
+    lastCenterLabel = label || '';
+    lastCenterIsManual = !!isManual;
+    placeUserMarker(coords, isManual, label);
+
+    const radius = parseInt(radiusEl.value, 10) || 5000;
+    const includeFriendly = !!includeFriendlyEl.checked;
+    const where = label ? ' near ' + label : '';
+    setStatus('Searching within ' + (radius / 1000) + ' km' + where + '...');
+
+    const data = await queryOverpass(buildOverpassQuery(coords.lat, coords.lon, radius, includeFriendly));
+    const elements = (data && data.elements) || [];
+
+    const seen = new Set();
+    const places = elements
+      .map(function (el) { return normalizeElement(el, coords.lat, coords.lon); })
+      .filter(function (p) {
+        if (!p) return false;
+        if (p.distanceKm * 1000 > radius) return false;
+        if (seen.has(p.id)) return false;
+        seen.add(p.id);
+        return true;
+      })
+      .sort(function (a, b) { return a.distanceKm - b.distanceKm; });
+
+    lastPlaces = places;
+    updateCuisineDropdown(places);
+    applyFilterAndRender();
+  }
+
   async function refresh() {
     refreshBtn.disabled = true;
+    if (useMyLocationBtn) useMyLocationBtn.disabled = true;
+    showLocationHelp(false);
     setStatus('Getting your location...');
     try {
       const coords = await getLocation();
-      lastCoords = coords;
-      placeUserMarker(coords);
-
-      const radius = parseInt(radiusEl.value, 10) || 5000;
-      const includeFriendly = !!includeFriendlyEl.checked;
-      setStatus('Searching within ' + (radius / 1000) + ' km...');
-
-      const data = await queryOverpass(buildOverpassQuery(coords.lat, coords.lon, radius, includeFriendly));
-      const elements = (data && data.elements) || [];
-
-      const seen = new Set();
-      const places = elements
-        .map(function (el) { return normalizeElement(el, coords.lat, coords.lon); })
-        .filter(function (p) {
-          if (!p) return false;
-          if (p.distanceKm * 1000 > radius) return false;
-          if (seen.has(p.id)) return false;
-          seen.add(p.id);
-          return true;
-        })
-        .sort(function (a, b) { return a.distanceKm - b.distanceKm; });
-
-      lastPlaces = places;
-      updateCuisineDropdown(places);
-      applyFilterAndRender();
+      await runSearchAtCenter(coords, '', false);
     } catch (err) {
       console.error(err);
       setStatus(err.message || 'Something went wrong.', true);
-      lastPlaces = [];
-      updateCuisineDropdown([]);
-      renderResults([], lastCoords || { lat: 0, lon: 0 });
+      showLocationHelp(true);
+      // Don't wipe an existing manual search; only clear if we had nothing.
+      if (!lastCoords) {
+        lastPlaces = [];
+        updateCuisineDropdown([]);
+        renderResults([], { lat: 0, lon: 0 });
+      }
     } finally {
       refreshBtn.disabled = false;
+      if (useMyLocationBtn) useMyLocationBtn.disabled = false;
+    }
+  }
+
+  async function searchPlace(query) {
+    const q = (query || '').trim();
+    if (!q) return;
+    placeSearchBtn.disabled = true;
+    showLocationHelp(false);
+    setStatus('Looking up "' + q + '"...');
+    try {
+      const result = await geocodePlace(q);
+      await runSearchAtCenter({ lat: result.lat, lon: result.lon }, result.label, true);
+    } catch (err) {
+      console.error(err);
+      setStatus(err.message || 'Could not find that place.', true);
+    } finally {
+      placeSearchBtn.disabled = false;
+    }
+  }
+
+  async function rerunCurrentSearch() {
+    if (!lastCoords) return;
+    try {
+      await runSearchAtCenter(lastCoords, lastCenterLabel, lastCenterIsManual);
+    } catch (err) {
+      console.error(err);
+      setStatus(err.message || 'Something went wrong.', true);
     }
   }
 
   document.addEventListener('DOMContentLoaded', function () {
     initMap();
     refreshBtn.addEventListener('click', refresh);
-    radiusEl.addEventListener('change', function () {
-      if (lastCoords) refresh();
-    });
-    includeFriendlyEl.addEventListener('change', function () {
-      if (lastCoords) refresh();
-    });
+    if (useMyLocationBtn) useMyLocationBtn.addEventListener('click', refresh);
+    radiusEl.addEventListener('change', rerunCurrentSearch);
+    includeFriendlyEl.addEventListener('change', rerunCurrentSearch);
     cuisineEl.addEventListener('change', applyFilterAndRender);
+    placeSearchForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      searchPlace(placeInputEl.value);
+    });
     refresh();
   });
 })();

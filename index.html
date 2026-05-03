@@ -28,6 +28,19 @@
   </header>
 
   <section class="controls">
+    <form id="place-search" class="place-search" autocomplete="off">
+      <label for="place-input" class="visually-hidden">Search a city or address</label>
+      <input
+        id="place-input"
+        type="search"
+        placeholder="Search a city, address or postcode"
+        enterkeyhint="search"
+        inputmode="search"
+      />
+      <button type="submit" id="place-search-btn">Search</button>
+      <button type="button" id="use-my-location-btn" title="Use my current location">My location</button>
+    </form>
+
     <div class="control-group">
       <label for="radius">Radius</label>
       <select id="radius">
@@ -51,6 +64,13 @@
     </label>
 
     <span id="status" class="status" role="status" aria-live="polite"></span>
+
+    <div id="location-help" class="location-help" hidden>
+      <strong>Can't get your location?</strong>
+      Search a city above, or enable location for Safari:
+      <em>Settings → Privacy &amp; Security → Location Services → Safari Websites → While Using App</em>,
+      then return here and tap Refresh.
+    </div>
   </section>
 
   <main>
