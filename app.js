@@ -307,10 +307,13 @@
         };
       })
       .sort(function (a, b) {
-        // Groups with closer minimum distance come first.
-        const aMin = a.places.reduce(function (m, p) { return Math.min(m, p.distanceKm); }, Infinity);
-        const bMin = b.places.reduce(function (m, p) { return Math.min(m, p.distanceKm); }, Infinity);
-        return aMin - bMin;
+        // Alphabetical group order — predictable and matches the dropdown.
+        // Within a group, places stay distance-sorted, so "closest first"
+        // still applies where it matters. "Other / unspecified" sinks to
+        // the bottom so unidentified results don't dominate the top.
+        if (a.key === '__other__') return 1;
+        if (b.key === '__other__') return -1;
+        return a.label.localeCompare(b.label);
       });
   }
 
